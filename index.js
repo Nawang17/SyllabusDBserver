@@ -2,7 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
-
+const nodemailer = require("nodemailer");
 const API_KEY = process.env.VIRUSTOTAL_API_KEY;
 
 const app = express();
@@ -69,6 +69,46 @@ app.get("/scan", async (req, res) => {
     console.error(err.response?.data || err.message);
 
     res.status(500).json({ error: "Scan failed" });
+  }
+});
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD, // 🔒 App password (never hardcode in production)
+  },
+});
+
+// POST /notify-upload
+app.post("/notify-upload", async (req, res) => {
+  const { collegeName, courseCode } = req.body;
+
+  if (!collegeName || !courseCode) {
+    return res.status(400).json({ error: "Missing collegeName or courseCode" });
+  }
+
+  try {
+    await transporter.sendMail({
+      from: '"SyllabusDB Alert" <nawangsherpa1010@gmail.com>',
+      to: "nawangsherpa1010@gmail.com", // your alert email
+      subject: `New Syllabus Upload: ${courseCode} at ${collegeName}`,
+      html: `
+        <p><strong>A new syllabus has been submitted!</strong></p>
+        <ul>
+          <li><strong>College:</strong> ${collegeName}</li>
+          <li><strong>Course Code:</strong> ${courseCode}</li>
+          
+        </ul>
+        <p>Check the admin dashboard to approve it.</p>
+        <a href="https://syllabusdb.com/admin" target="_blank">Go to Admin Dashboard</a>
+      `,
+    });
+    console.log("✅ Notification sent successfully");
+    res.json({ message: "Notification sent" });
+  } catch (err) {
+    console.error("❌ Email send failed:", err);
+    res.status(500).json({ error: "Failed to send notification" });
   }
 });
 
