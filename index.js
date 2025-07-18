@@ -88,14 +88,6 @@ app.get("/scan", async (req, res) => {
   }
 });
 
-// const transporter = nodemailer.createTransport({
-//   service: "gmail",
-//   auth: {
-//     user: process.env.EMAIL_USER,
-//     pass: process.env.EMAIL_PASSWORD, // 🔒 App password (never hardcode in production)
-//   },
-// });
-
 // POST /notify-upload
 app.post("/notify-upload", async (req, res) => {
   const { collegeName, courseCode } = req.body;
@@ -146,6 +138,39 @@ app.post("/notify-college-request", async (req, res) => {
   } catch (err) {
     console.error("❌ Discord Notification send failed:", err);
     res.status(500).json({ error: "Failed to send notification" });
+  }
+});
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD, // Use an app-specific password if using Gmail
+  },
+});
+
+app.post("/notify-user", async (req, res) => {
+  const { email, subject, message } = req.body;
+
+  if (!email || !subject || !message) {
+    return res
+      .status(400)
+      .json({ error: "Missing email, subject, or message" });
+  }
+
+  try {
+    await transporter.sendMail({
+      from: `"SyllabusDB Notifications" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject,
+      text: message,
+    });
+
+    console.log(`✅ Email sent to ${email}`);
+    res.json({ message: "Email sent" });
+  } catch (err) {
+    console.error("❌ Email failed:", err);
+    res.status(500).json({ error: "Failed to send email" });
   }
 });
 
