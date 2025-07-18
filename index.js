@@ -123,5 +123,31 @@ app.post("/notify-upload", async (req, res) => {
   }
 });
 
+app.post("/notify-college-request", async (req, res) => {
+  const { collegeName, location } = req.body;
+
+  if (!collegeName || !location) {
+    return res.status(400).json({ error: "Missing collegeName or location" });
+  }
+
+  try {
+    // Send Discord notification to admin
+    try {
+      await client?.users?.send(
+        process.env.USERID,
+        `**New College Request!**\n` + `**${collegeName}** (${location})`
+      );
+    } catch (err) {
+      console.error("❌ Discord notification failed:", err);
+    }
+
+    console.log("✅ Notification sent successfully");
+    res.json({ message: "Notification sent" });
+  } catch (err) {
+    console.error("❌ Discord Notification send failed:", err);
+    res.status(500).json({ error: "Failed to send notification" });
+  }
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
