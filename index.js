@@ -109,7 +109,7 @@ app.post("/notify-upload", async (req, res) => {
     try {
       await client?.users?.send(
         process.env.USERID,
-        `**New Syllabus Upload !**\n` + `**${collegeName}** (${courseCode})`
+        `**New Syllabus Upload!**\n` + `**${collegeName}** (${courseCode})`
       );
     } catch (err) {
       console.error("❌ Discord notification failed:", err);
