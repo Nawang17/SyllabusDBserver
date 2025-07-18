@@ -4,11 +4,27 @@ const axios = require("axios");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
 const API_KEY = process.env.VIRUSTOTAL_API_KEY;
-
+const {
+  Client,
+  Events,
+  ActivityType,
+  GatewayIntentBits,
+} = require("discord.js");
 const app = express();
 app.use(cors());
 app.use(express.json());
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [];
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+});
+client.once(Events.ClientReady, (c) => {
+  console.log(`Discord bot ready! Logged in as ${c.user.tag}`);
+
+  c.user.setPresence({
+    activities: [{ name: "syllabusdb.com", type: ActivityType.Watching }],
+  });
+});
+client.login(process.env.DISCORD_BOT_TOKEN);
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -72,13 +88,13 @@ app.get("/scan", async (req, res) => {
   }
 });
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD, // 🔒 App password (never hardcode in production)
-  },
-});
+// const transporter = nodemailer.createTransport({
+//   service: "gmail",
+//   auth: {
+//     user: process.env.EMAIL_USER,
+//     pass: process.env.EMAIL_PASSWORD, // 🔒 App password (never hardcode in production)
+//   },
+// });
 
 // POST /notify-upload
 app.post("/notify-upload", async (req, res) => {
@@ -89,25 +105,20 @@ app.post("/notify-upload", async (req, res) => {
   }
 
   try {
-    await transporter.sendMail({
-      from: '"SyllabusDB Alert" <nawangsherpa1010@gmail.com>',
-      to: "nawangsherpa1010@gmail.com", // your alert email
-      subject: `New Syllabus Upload: ${courseCode} at ${collegeName}`,
-      html: `
-        <p><strong>A new syllabus has been submitted!</strong></p>
-        <ul>
-          <li><strong>College:</strong> ${collegeName}</li>
-          <li><strong>Course Code:</strong> ${courseCode}</li>
-          
-        </ul>
-        <p>Check the admin dashboard to approve it.</p>
-        <a href="https://syllabusdb.com/admin" target="_blank">Go to Admin Dashboard</a>
-      `,
-    });
+    // Send Discord notification to admin
+    try {
+      await client?.users?.send(
+        process.env.USERID,
+        `**New Syllabus Upload**\n` + `**${collegeName}** - (${courseCode})`
+      );
+    } catch (err) {
+      console.error("❌ Discord notification failed:", err);
+    }
+
     console.log("✅ Notification sent successfully");
     res.json({ message: "Notification sent" });
   } catch (err) {
-    console.error("❌ Email send failed:", err);
+    console.error("❌ Discord Notification send failed:", err);
     res.status(500).json({ error: "Failed to send notification" });
   }
 });
