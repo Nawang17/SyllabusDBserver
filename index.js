@@ -2,29 +2,45 @@ require("dotenv").config();
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
-const nodemailer = require("nodemailer");
 const API_KEY = process.env.VIRUSTOTAL_API_KEY;
+
 const {
   Client,
   Events,
   ActivityType,
   GatewayIntentBits,
 } = require("discord.js");
+
 const app = express();
 app.use(cors());
 app.use(express.json());
+
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [];
+
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
 });
+
+const FormData = require("form-data");
+const Mailgun = require("mailgun.js");
+
+const mailgun = new Mailgun(FormData);
+const mg = mailgun.client({
+  username: "api",
+  key: process.env.MAILGUN_API_KEY,
+});
+const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN;
+
+// ---- Discord bot ----
 client.once(Events.ClientReady, (c) => {
   console.log(`Discord bot ready! Logged in as ${c.user.tag}`);
-
   c.user.setPresence({
     activities: [{ name: "syllabusdb.com", type: ActivityType.Watching }],
   });
 });
 client.login(process.env.DISCORD_BOT_TOKEN);
+
+// ---- CORS (restrict to allowed origins) ----
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -34,12 +50,14 @@ app.use(
         callback(new Error("Not allowed by CORS"));
       }
     },
-    methods: ["GET"],
+    methods: ["GET", "POST"], // allow POST for notify endpoints
   })
 );
-app.get("/", (req, res) => {
+
+// ---- Routes ----
+app.get("/", async (req, res) => {
   res.send(
-    "Welcome to the VirusTotal URL Scanner API! Use POST /scan with 'url' query parameter to scan a URL."
+    "Welcome to the SyllabusDB API. Visit https://syllabusdb.com for more information."
   );
 });
 
@@ -83,7 +101,6 @@ app.get("/scan", async (req, res) => {
     res.json(result.data.attributes.stats);
   } catch (err) {
     console.error(err.response?.data || err.message);
-
     res.status(500).json({ error: "Scan failed" });
   }
 });
@@ -101,7 +118,7 @@ app.post("/notify-upload", async (req, res) => {
     try {
       await client?.users?.send(
         process.env.USERID,
-        `**📄 New Syllabus Upload!**\n` + `**${collegeName}** (${courseCode})`
+        `**📄 New Syllabus Upload!**\n**${collegeName}** (${courseCode})`
       );
     } catch (err) {
       console.error("❌ Discord notification failed:", err);
@@ -127,7 +144,7 @@ app.post("/notify-college-request", async (req, res) => {
     try {
       await client?.users?.send(
         process.env.USERID,
-        `**🎓 New College Request!**\n` + `**${collegeName}** (${location})`
+        `**🎓 New College Request!**\n**${collegeName}** (${location})`
       );
     } catch (err) {
       console.error("❌ Discord notification failed:", err);
@@ -141,14 +158,6 @@ app.post("/notify-college-request", async (req, res) => {
   }
 });
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD, // Use an app-specific password if using Gmail
-  },
-});
-
 app.post("/notify-user", async (req, res) => {
   const { email, subject, message } = req.body;
 
@@ -158,18 +167,28 @@ app.post("/notify-user", async (req, res) => {
       .json({ error: "Missing email, subject, or message" });
   }
 
+  // Standard footer for all emails
+  const footer = `
+---
+This is an automated email, please do not reply.
+Need help? Contact katophh@gmail.com
+Unsubscribe: https://syllabusdb.com/settings
+Visit us: https://syllabusdb.com
+
+`;
+
   try {
-    await transporter.sendMail({
-      from: `"SyllabusDB Notifications" <${process.env.EMAIL_USER}>`,
-      to: email,
+    await mg.messages.create(MAILGUN_DOMAIN, {
+      from: `SyllabusDB Notifications <no-reply@${MAILGUN_DOMAIN}>`,
+      to: [email],
       subject,
-      text: message,
+      text: `${message}\n\n${footer}`,
     });
 
-    console.log(`✅ Email sent to ${email}`);
+    console.log(`✅ Mailgun email sent to ${email}`);
     res.json({ message: "Email sent" });
   } catch (err) {
-    console.error("❌ Email failed:", err);
+    console.error("❌ Mailgun email failed:", err?.response?.body || err);
     res.status(500).json({ error: "Failed to send email" });
   }
 });
