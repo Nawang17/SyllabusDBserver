@@ -1,1 +1,1 @@
-This is the repo for syllabus server
+This is the repo for SyllabusDB server
