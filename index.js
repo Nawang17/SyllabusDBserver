@@ -106,6 +106,21 @@ app.get("/scan", async (req, res) => {
 });
 
 // POST /notify-upload
+
+app.post("/notify-newUser", async (req, res) => {
+  //just want to discord noti saying new user signed up
+  try {
+    await client?.users?.send(
+      process.env.USERID,
+      `**🆕 New User Signup!**\nA new user has signed up on SyllabusDB.`
+    );
+    console.log("✅ New user notification sent successfully");
+    res.json({ message: "Notification sent" });
+  } catch (err) {
+    console.error("❌ New user notification failed:", err);
+    res.status(500).json({ error: "Failed to send notification" });
+  }
+});
 app.post("/notify-upload", async (req, res) => {
   const { collegeName, courseCode } = req.body;
 
