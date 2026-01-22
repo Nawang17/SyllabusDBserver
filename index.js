@@ -38,8 +38,16 @@ client.once(Events.ClientReady, (c) => {
     activities: [{ name: "syllabusdb.com", type: ActivityType.Watching }],
   });
 });
-client.login(process.env.DISCORD_BOT_TOKEN);
-
+client
+  .login(process.env.DISCORD_BOT_TOKEN)
+  .then(() => console.log("✅ Discord login() resolved"))
+  .catch((err) => console.error("❌ Discord login() failed:", err));
+process.on("unhandledRejection", (reason) => {
+  console.error("UNHANDLED REJECTION:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("UNCAUGHT EXCEPTION:", err);
+});
 // ---- CORS (restrict to allowed origins) ----
 app.use(
   cors({
@@ -51,13 +59,14 @@ app.use(
       }
     },
     methods: ["GET", "POST"], // allow POST for notify endpoints
-  })
+  }),
 );
 
 // ---- Routes ----
 app.get("/", async (req, res) => {
+  await client?.users?.send(process.env.USERID, "Discord bot pinged!");
   res.send(
-    "Welcome to the SyllabusDB API. Visit https://syllabusdb.com for more information."
+    "Welcome to the SyllabusDB API. Visit https://syllabusdb.com for more information.",
   );
 });
 
@@ -79,7 +88,7 @@ app.get("/scan", async (req, res) => {
           "x-apikey": API_KEY,
           "Content-Type": "application/x-www-form-urlencoded",
         },
-      }
+      },
     );
 
     const scanId = scanRes.data.data.id;
@@ -91,7 +100,7 @@ app.get("/scan", async (req, res) => {
       await new Promise((resolve) => setTimeout(resolve, 10000));
       const analysis = await axios.get(
         `https://www.virustotal.com/api/v3/analyses/${scanId}`,
-        { headers: { "x-apikey": API_KEY } }
+        { headers: { "x-apikey": API_KEY } },
       );
       status = analysis.data.data.attributes.status;
       result = analysis.data;
@@ -112,7 +121,7 @@ app.post("/notify-newUser", async (req, res) => {
   try {
     await client?.users?.send(
       process.env.USERID,
-      `**🆕 New User Signup!**\nA new user has signed up on SyllabusDB.`
+      `**🆕 New User Signup!**\nA new user has signed up on SyllabusDB.`,
     );
     console.log("✅ New user notification sent successfully");
     res.json({ message: "Notification sent" });
@@ -133,7 +142,7 @@ app.post("/notify-upload", async (req, res) => {
     try {
       await client?.users?.send(
         process.env.USERID,
-        `**📄 New Syllabus Upload!**\n**${collegeName}** (${courseCode})`
+        `**📄 New Syllabus Upload!**\n**${collegeName}** (${courseCode})`,
       );
     } catch (err) {
       console.error("❌ Discord notification failed:", err);
@@ -159,7 +168,7 @@ app.post("/notify-college-request", async (req, res) => {
     try {
       await client?.users?.send(
         process.env.USERID,
-        `**🎓 New College Request!**\n**${collegeName}** (${location})`
+        `**🎓 New College Request!**\n**${collegeName}** (${location})`,
       );
     } catch (err) {
       console.error("❌ Discord notification failed:", err);
