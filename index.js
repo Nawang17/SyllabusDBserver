@@ -64,7 +64,7 @@ app.use(
 
 // ---- Routes ----
 app.get("/", async (req, res) => {
-  await client?.users?.send(process.env.USERID, "Discord bot pinged!");
+ 
   res.send(
     "Welcome to the SyllabusDB API. Visit https://syllabusdb.com for more information.",
   );
